@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Butterfly Classifier</title>
+
+<!-- Fonts (Fontsource CDN) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@latest/600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/fraunces@latest/700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/outfit@latest/400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/outfit@latest/500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/outfit@latest/600.css">
+
+<style>
+  /* ============ DESIGN TOKENS ============ */
+  :root{
+    --bg-0:#0b1220;
+    --bg-1:#101b33;
+    --ink:#eaf1fb;
+    --muted:#9db0c9;
+    --card-line:rgba(255,255,255,.09);
+    --amber:#fbbf24;
+    --pink:#f472b6;
+    --violet:#a78bfa;
+    --teal:#2dd4bf;
+    --grad:linear-gradient(120deg,var(--amber),var(--pink) 52%,var(--violet));
+    --radius:24px;
+  }
+
+  *{margin:0;padding:0;box-sizing:border-box}
+  [hidden]{display:none!important}
+
+  html{scroll-behavior:smooth}
+
+  body{
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    padding:48px 18px;
+    font-family:'Outfit',system-ui,sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(1100px 600px at 85% -10%, rgba(167,139,250,.14), transparent 60%),
+      radial-gradient(900px 550px at -10% 100%, rgba(45,212,191,.12), transparent 60%),
+      linear-gradient(165deg,var(--bg-1),var(--bg-0) 65%);
+    overflow-x:hidden;
+  }
+
+  /* ============ AMBIENT BACKGROUND ============ */
+  .orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0}
+  .orb-a{width:420px;height:420px;left:-140px;top:-120px;background:rgba(45,212,191,.16);animation:orbFloat 14s ease-in-out infinite alternate}
+  .orb-b{width:380px;height:380px;right:-120px;top:22%;background:rgba(167,139,250,.15);animation:orbFloat 17s ease-in-out infinite alternate-reverse}
+  .orb-c{width:340px;height:340px;left:18%;bottom:-160px;background:rgba(251,191,36,.10);animation:orbFloat 20s ease-in-out infinite alternate}
+  @keyframes orbFloat{from{transform:translate(0,0) scale(1)}to{transform:translate(40px,-30px) scale(1.12)}}
+
+  .flutter{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+  .fly{position:absolute;left:0;will-change:transform;animation:driftAcross linear infinite}
+  .fly-inner{display:inline-block;animation:sway ease-in-out infinite alternate}
+  @keyframes driftAcross{
+    0%  {transform:translateX(-10vw) translateY(0)     rotate(-6deg)}
+    25% {transform:translateX(18vw)  translateY(-7vh)  rotate(6deg)}
+    50% {transform:translateX(46vw)  translateY(2vh)   rotate(-7deg)}
+    75% {transform:translateX(74vw)  translateY(-8vh)  rotate(6deg)}
+    100%{transform:translateX(112vw) translateY(-3vh)  rotate(-4deg)}
+  }
+  @keyframes sway{from{transform:translateY(-7px) rotate(-12deg)}to{transform:translateY(7px) rotate(12deg)}}
+
+  /* ============ CARD ============ */
+  .card{
+    position:relative;z-index:1;
+    width:min(660px,94vw);
+    padding:clamp(28px,5vw,46px);
+    border-radius:var(--radius);
+    background:linear-gradient(160deg,rgba(24,34,58,.72),rgba(12,19,34,.82));
+    border:1px solid var(--card-line);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+    text-align:center;
+    animation:fadeUp .8s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .card::before{
+    content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+    background:radial-gradient(420px 160px at 50% -8%, rgba(244,114,182,.14), transparent 70%);
+  }
+  @keyframes fadeUp{from{opacity:0;transform:translateY(26px) scale(.98)}to{opacity:1;transform:none}}
+
+  .emblem{
+    width:96px;height:96px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 18px;
+    box-shadow:0 0 0 1px rgba(255,255,255,.14), 0 0 42px rgba(167,139,250,.4), 0 12px 30px rgba(0,0,0,.45);
+    animation:floaty 5s ease-in-out infinite;
+  }
+  @keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:.7rem;font-weight:600;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--teal);
+    background:rgba(45,212,191,.08);
+    border:1px solid rgba(45,212,191,.28);
+    padding:7px 14px;border-radius:999px;margin-bottom:16px;
+  }
+
+  h1{
+    font-family:'Fraunces',serif;font-weight:700;
+    font-size:clamp(1.85rem,5vw,2.75rem);
+    line-height:1.15;letter-spacing:.01em;
+    background:var(--grad);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:transparent;
+    margin-bottom:12px;
+  }
+
+  .subtitle{color:var(--muted);font-size:.98rem;line-height:1.65;max-width:44ch;margin:0 auto 26px}
+
+  /* ============ DROPZONE ============ */
+  .dropzone{
+    position:relative;min-height:190px;border-radius:18px;cursor:pointer;
+    border:1.5px dashed rgba(255,255,255,.22);
+    background:rgba(255,255,255,.03);
+    display:grid;place-items:center;overflow:hidden;
+    transition:border-color .25s, background .25s, box-shadow .25s;
+  }
+  .dropzone:hover,.dropzone:focus-visible,.dropzone.dragover{
+    border-color:var(--pink);
+    background:rgba(244,114,182,.05);
+    box-shadow:0 0 0 4px rgba(244,114,182,.12);
+    outline:none;
+  }
+  .dz-inner{padding:26px;display:grid;justify-items:center;gap:8px;color:var(--muted)}
+  .dz-inner svg{width:38px;height:38px;stroke:var(--violet);margin-bottom:2px}
+  .dz-inner strong{color:var(--ink);font-weight:600}
+  .dz-inner small{font-size:.75rem;letter-spacing:.06em;opacity:.75}
+  .dropzone.filled{border-style:solid;border-color:rgba(255,255,255,.16)}
+  .dropzone.filled .dz-inner{display:none}
+  .dropzone img{width:100%;height:250px;object-fit:cover;display:block}
+  .dropzone.filled::after{
+    content:"Click to change photo";
+    position:absolute;inset:0;display:grid;place-items:center;
+    background:rgba(9,13,24,.55);backdrop-filter:blur(2px);
+    color:#fff;font-size:.85rem;letter-spacing:.05em;
+    opacity:0;transition:opacity .25s;
+  }
+  .dropzone.filled:hover::after,.dropzone.filled:focus-visible::after{opacity:1}
+  .dropzone.shake{animation:shake .45s cubic-bezier(.36,.07,.19,.97)}
+  @keyframes shake{10%,90%{transform:translateX(-2px)}20%,80%{transform:translateX(5px)}30%,50%,70%{transform:translateX(-8px)}40%,60%{transform:translateX(8px)}}
+
+  /* ============ SAMPLES ============ */
+  .samples{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;margin:18px 0 24px}
+  .samples-label{font-size:.82rem;color:var(--muted);letter-spacing:.04em}
+  .sample{
+    width:54px;height:54px;border-radius:50%;overflow:hidden;cursor:pointer;
+    border:2px solid rgba(255,255,255,.15);padding:0;background:none;
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .sample img{width:100%;height:100%;object-fit:cover;display:block}
+  .sample:hover{transform:translateY(-3px) scale(1.06);border-color:var(--teal)}
+  .sample.active{border-color:var(--pink);box-shadow:0 0 0 4px rgba(244,114,182,.22), 0 8px 20px rgba(0,0,0,.4)}
+  .sample:focus-visible{outline:2px solid var(--violet);outline-offset:3px}
+
+  /* ============ PREDICT BUTTON ============ */
+  .predict{
+    position:relative;width:100%;border:none;cursor:pointer;
+    padding:16px 20px;border-radius:15px;overflow:hidden;
+    font-family:'Outfit',sans-serif;font-size:1.02rem;font-weight:600;letter-spacing:.09em;
+    color:#1a1026;background:var(--grad);background-size:180% 100%;
+    box-shadow:0 12px 32px rgba(244,114,182,.32), inset 0 1px 0 rgba(255,255,255,.4);
+    transition:transform .18s, box-shadow .25s, background-position .4s, opacity .2s;
+  }
+  .predict:hover:not(:disabled){transform:translateY(-2px);background-position:100% 0;box-shadow:0 16px 40px rgba(244,114,182,.42)}
+  .predict:active:not(:disabled){transform:translateY(0) scale(.99)}
+  .predict:disabled{cursor:wait;opacity:.85}
+  .predict::after{
+    content:"";position:absolute;top:0;left:-70%;width:45%;height:100%;
+    background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+    transform:skewX(-20deg);transition:left .6s ease;
+  }
+  .predict:hover::after{left:125%}
+  .spinner{
+    position:absolute;right:18px;top:50%;translate:0 -50%;
+    width:18px;height:18px;border-radius:50%;
+    border:2.5px solid rgba(26,16,38,.25);border-top-color:#1a1026;
+    opacity:0;animation:spin .75s linear infinite;
+  }
+  .predict.loading .spinner{opacity:1}
+  .predict.loading .btn-label{opacity:.6}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ============ RESULT ============ */
+  .result{
+    margin-top:24px;text-align:left;
+    border-radius:18px;padding:22px 22px 20px;
+    background:rgba(255,255,255,.04);
+    border:1px solid rgba(255,255,255,.1);
+    animation:pop .5s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  @keyframes pop{from{opacity:0;transform:scale(.94) translateY(10px)}to{opacity:1;transform:none}}
+  .result-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .result-tag{
+    font-size:.68rem;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--sp,var(--amber));
+    background:color-mix(in srgb, var(--sp,var(--amber)) 12%, transparent);
+    border:1px solid color-mix(in srgb, var(--sp,var(--amber)) 35%, transparent);
+    padding:6px 12px;border-radius:999px;
+  }
+  .conf-chip{font-weight:600;font-size:.95rem;color:var(--ink)}
+  .result-name{font-family:'Fraunces',serif;font-weight:600;font-size:1.55rem;margin-bottom:2px}
+  .result-sci{font-style:italic;color:var(--muted);font-size:.88rem;margin-bottom:16px}
+  .bar{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .bar-fill{height:100%;width:0;border-radius:inherit;background:var(--grad);transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+  .fact{
+    margin-top:16px;font-size:.88rem;line-height:1.6;color:var(--muted);
+    background:rgba(255,255,255,.04);
+    border-left:3px solid var(--sp,var(--amber));
+    padding:12px 14px;border-radius:0 12px 12px 0;
+  }
+  .fact b{color:var(--ink);font-weight:600}
+
+  footer{
+    position:relative;z-index:1;margin-top:26px;text-align:center;
+    color:var(--muted);font-size:.78rem;letter-spacing:.06em;opacity:.8;
+  }
+
+  @media (max-width:560px){
+    .dropzone img{height:200px}
+    .samples{gap:10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+  <!-- ambient layers -->
+  <div class="orb orb-a"></div>
+  <div class="orb orb-b"></div>
+  <div class="orb orb-c"></div>
+  <div class="flutter" id="flutter" aria-hidden="true"></div>
+
+  <main class="card">
+    <img class="emblem" src="https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/1819352f7-aa16-4e23-944e-a843a021fb73.png" alt="Glowing butterfly emblem">
+    <span class="badge">✨ Image Classifier · Butterfly Database</span>
+
+    <h1>🦋 Butterfly Species Classifier</h1>
+    <p class="subtitle">Upload a photo of a butterfly and let the model identify its species in seconds.</p>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload butterfly photo">
+      <input type="file" id="fileInput" accept="image/*" hidden>
+      <div class="dz-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p><strong>Click to upload</strong> or drag &amp; drop</p>
+        <small>PNG · JPG · WEBP — up to 10 MB</small>
+      </div>
+      <img id="preview" alt="Butterfly preview" hidden>
+    </div>
+
+    <div class="samples">
+      <span class="samples-label">Or try a sample:</span>
+      <button class="sample" data-species="Monarch" title="Monarch">
+        <img src="https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/19514faec-f5db-4a54-a563-3d28f632f843.png" alt="Monarch sample">
+      </button>
+      <button class="sample" data-species="Blue Morpho" title="Blue Morpho">
+        <img src="https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/113663ebc-5b3d-4d2d-90ce-3ba698da5869.png" alt="Blue Morpho sample">
+      </button>
+      <button class="sample" data-species="Swallowtail" title="Swallowtail">
+        <img src="https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/15af92200-5a83-4978-8da5-61d711218e27.png" alt="Swallowtail sample">
+      </button>
+    </div>
+
+    <button class="predict" id="predictBtn">
+      <span class="btn-label">Predict</span>
+      <span class="spinner" aria-hidden="true"></span>
+    </button>
+
+    <section class="result" id="result" hidden>
+      <div class="result-top">
+        <span class="result-tag">🏆 Top match</span>
+        <span class="conf-chip" id="confChip">—</span>
+      </div>
+      <h2 class="result-name" id="resultName">—</h2>
+      <p class="result-sci" id="resultSci">—</p>
+      <div class="bar"><div class="bar-fill" id="barFill"></div></div>
+      <p class="fact" id="factText">—</p>
+    </section>
+  </main>
+
+  <footer>Butterfly Classification · Mirza Galib ✨</footer>
+
+<script>
+  /* ---------- data ---------- */
+  var SPECIES = [
+    { name:"Monarch",     sci:"Danaus plexippus",  color:"#fbbf24", fact:"Famous for migrating up to 3,000 miles each autumn — one of the longest migrations in the insect world." },
+    { name:"Blue Morpho", sci:"Morpho peleides",   color:"#38bdf8", fact:"Its dazzling blue isn't pigment at all — microscopic wing scales reflect and bend light like tiny mirrors." },
+    { name:"Swallowtail", sci:"Papilio machaon",   color:"#facc15", fact:"Named for the elegant tail-like extensions on its hindwings, reminiscent of a swallow's feathers." },
+    { name:"Painted Lady",sci:"Vanessa cardui",    color:"#fb7185", fact:"One of the most widespread butterflies on Earth, found on every continent except Antarctica." },
+    { name:"Red Admiral", sci:"Vanessa atalanta",  color:"#ef4444", fact:"A bold flyer that loves rotting fruit and will fearlessly land on people to sip minerals." }
+  ];
+
+  var SAMPLE_IMG = {
+    "Monarch":     "https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/19514faec-f5db-4a54-a563-3d28f632f843.png",
+    "Blue Morpho": "https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/113663ebc-5b3d-4d2d-90ce-3ba698da5869.png",
+    "Swallowtail": "https://image.qwenlm.ai/public_source/862f7ba2-9822-40f5-ac8c-1a65374d0fce/15af92200-5a83-4978-8da5-61d711218e27.png"
+  };
+
+  /* ---------- elements ---------- */
+  var dropzone   = document.getElementById('dropzone');
+  var fileInput  = document.getElementById('fileInput');
+  var preview    = document.getElementById('preview');
+  var predictBtn = document.getElementById('predictBtn');
+  var resultBox  = document.getElementById('result');
+  var resultName = document.getElementById('resultName');
+  var resultSci  = document.getElementById('resultSci');
+  var confChip   = document.getElementById('confChip');
+  var barFill    = document.getElementById('barFill');
+  var factText   = document.getElementById('factText');
+  var sampleBtns = document.querySelectorAll('.sample');
+
+  var hasImage = false;
+  var forcedSpecies = null;
+
+  function rand(min, max){ return Math.random() * (max - min) + min; }
+
+  /* ---------- ambient butterflies ---------- */
+  (function spawnFlutter(){
+    var field = document.getElementById('flutter');
+    for (var i = 0; i < 9; i++){
+      var fly = document.createElement('span');
+      fly.className = 'fly';
+      var inner = document.createElement('span');
+      inner.className = 'fly-inner';
+      inner.textContent = '🦋';
+      fly.appendChild(inner);
+      fly.style.top = rand(4, 84) + 'vh';
+      fly.style.fontSize = rand(13, 30) + 'px';
+      fly.style.opacity = rand(0.16, 0.5).toFixed(2);
+      fly.style.animationDuration = rand(22, 44) + 's';
+      fly.style.animationDelay = '-' + rand(0, 40).toFixed(1) + 's';
+      inner.style.animationDuration = rand(1.8, 3.4).toFixed(2) + 's';
+      if (Math.random() < 0.4) fly.style.filter = 'blur(1.5px)';
+      field.appendChild(fly);
+    }
+  })();
+
+  /* ---------- upload / drag & drop ---------- */
+  dropzone.addEventListener('click', function(){ fileInput.click(); });
+  dropzone.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener('change', function(){
+    if (fileInput.files && fileInput.files[0]) loadFile(fileInput.files[0]);
+  });
+
+  ['dragenter','dragover'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
+  });
+  ['dragleave','dragend'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(){ dropzone.classList.remove('dragover'); });
+  });
+  dropzone.addEventListener('drop', function(e){
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    var file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file && file.type.indexOf('image/') === 0) loadFile(file);
+  });
+
+  function loadFile(file){
+    var url = URL.createObjectURL(file);
+    setPreview(url);
+    forcedSpecies = null;
+    clearSampleActive();
+  }
+
+  function setPreview(url){
+    preview.src = url;
+    preview.hidden = false;
+    dropzone.classList.add('filled');
+    hasImage = true;
+  }
+
+  /* ---------- samples ---------- */
+  function clearSampleActive(){
+    sampleBtns.forEach(function(b){ b.classList.remove('active'); });
+  }
+  sampleBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      clearSampleActive();
+      btn.classList.add('active');
+      forcedSpecies = btn.getAttribute('data-species');
+      setPreview(SAMPLE_IMG[forcedSpecies]);
+      fileInput.value = '';
+    });
+  });
+
+  /* ---------- predict ---------- */
+  predictBtn.addEventListener('click', function(){
+    if (!hasImage){
+      dropzone.classList.remove('shake');
+      void dropzone.offsetWidth;
+      dropzone.classList.add('shake');
+      return;
+    }
+    predictBtn.classList.add('loading');
+    predictBtn.disabled = true;
+    resultBox.hidden = true;
+
+    setTimeout(function(){
+      var pick;
+      if (forcedSpecies){
+        pick = SPECIES.filter(function(s){ return s.name === forcedSpecies; })[0];
+      } else {
+        pick = SPECIES[Math.floor(Math.random() * SPECIES.length)];
+      }
+      var conf = Math.round(forcedSpecies ? rand(93, 99) : rand(84, 97));
+
+      resultBox.style.setProperty('--sp', pick.color);
+      resultName.textContent = pick.name;
+      resultSci.textContent  = pick.sci;
+      confChip.textContent   = conf + '% confidence';
+      factText.innerHTML     = '<b>Butterfly fact:</b> ' + pick.fact;
+
+      barFill.style.width = '0%';
+      resultBox.hidden = false;
+
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          barFill.style.width = conf + '%';
+        });
+      });
+
+      predictBtn.classList.remove('loading');
+      predictBtn.disabled = false;
+    }, rand(1500, 2200));
+  });
+</script>
+</body>
+</html>

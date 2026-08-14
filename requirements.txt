@@ -1,0 +1,25 @@
+# =========================================================
+# Requirements for Butterfly Image Classification Project
+# =========================================================
+
+# ---- Core Deep Learning Frameworks ----
+torch==2.3.1
+torchvision==0.18.1
+tensorflow==2.16.1
+
+# ---- Data Handling & Numerical Computing ----
+numpy==1.26.4
+pandas==2.2.2
+
+# ---- Image Processing ----
+opencv-python==4.10.0.84
+Pillow==10.3.0
+
+# ---- Machine Learning Utilities ----
+scikit-learn==1.5.0
+
+# ---- Visualization ----
+matplotlib==3.9.0
+
+# ---- Web Framework (for model serving/deployment) ----
+flask==3.0.3
